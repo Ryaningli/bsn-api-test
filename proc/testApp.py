@@ -30,24 +30,19 @@ class TestApp:
         self.doc_path = None
         self.default_chain_code_id = None
 
-    @staticmethod
-    def assert_code(response, msg=None):
-        json_data = response.json()
-        try:
-            assert json_data['code'] == 0
-            log.info('成功：{}'.format(msg))
-            return json_data
-        except AssertionError:
-            log.error('失败:{}:{}'.format(msg, json_data))
-            raise AssertionError('返回code不等于0！')
-
     # 获取用户信息（用户id与账户余额）
     def get_user_info(self):
         self.ch.set_url(common.user_info)
         response = self.ch.post()
-        json_data = self.assert_code(response, '获取用户信息')
-        self.user_id = json_data['data']['bsnUser']['userId']
-        self.account = json_data['data']['bsnUser']['userAccount']
+        json_data = response.json()
+        try:
+            assert json_data['code'] == 0
+            self.user_id = json_data['data']['bsnUser']['userId']
+            self.account = json_data['data']['bsnUser']['userAccount']
+            log.info('获取用户信息成功')
+        except AssertionError:
+            log.error('获取用户信息失败:{}'.format(json_data))
+            raise AssertionError('返回code不等于0！')
 
     # 获取可用的节点列表
     def get_usable_node(self):
@@ -55,8 +50,14 @@ class TestApp:
         self.ch.set_url(common.usable_node)
         self.ch.set_data(data)
         response = self.ch.post_json()
-        json_data = self.assert_code(response, '获取可用节点列表')
-        self.usable_node = json_data['rows']
+        json_data = response.json()
+        try:
+            assert json_data['code'] == 0
+            self.usable_node = json_data['rows']
+            log.info('获取可用的节点列表成功')
+        except AssertionError:
+            log.info('获取可用的节点列表失败:{}'.format(json_data))
+            raise AssertionError('返回code不等于0！')
 
     # 购买服务订单
     def by_app(self):
@@ -111,15 +112,22 @@ class TestApp:
         self.ch.set_url(common.by_app)
         self.ch.set_data(data)
         response = self.ch.post_json()
-        json_data = self.assert_code(response, '购买服务订单')
+        json_data = response.json()
+        try:
+            assert json_data['code'] == 0
 
-        # 更新服务名称
-        new_app_name = app_name.split('_')[0] + '_' + str(int(app_name.split('_')[1]) + 1)
-        self.rc.set_http('app_name', new_app_name)
+            # 更新服务名称
+            new_app_name = app_name.split('_')[0] + '_' + str(int(app_name.split('_')[1]) + 1)
+            self.rc.set_http('app_name', new_app_name)
 
-        self.order_id = json_data['data']['orderId']
-        self.app_info_id = json_data['data']['appInfoId']
-        self.pay_price = json_data['data']['payPrice']
+            self.order_id = json_data['data']['orderId']
+            self.app_info_id = json_data['data']['appInfoId']
+            self.pay_price = json_data['data']['payPrice']
+            log.info('购买服务订单生成成功')
+
+        except AssertionError:
+            log.error('购买服务订单生成失败:{}'.format(json_data))
+            raise AssertionError('返回code不等于0！')
 
     # 购买服务订单支付
     def pay_app_order(self):
@@ -129,7 +137,13 @@ class TestApp:
         self.ch.set_url(common.pay)
         self.ch.set_data(data)
         response = self.ch.post_json()
-        self.assert_code(response, '购买服务订单支付')
+        json_data = response.json()
+        try:
+            assert json_data['code'] == 0
+            log.info('支付成功')
+        except AssertionError:
+            log.error('支付失败:{}'.format(json_data))
+            raise AssertionError('返回code不等于0！')
 
     # 获取服务类型
     def app_get(self):
@@ -139,17 +153,29 @@ class TestApp:
         self.ch.set_url(common.app_get)
         self.ch.set_data(data)
         response = self.ch.post_json()
-        json_data = self.assert_code(response, '获取服务类型')
-        self.frame_type = json_data['data']['frameType']
+        json_data = response.json()
+        try:
+            assert json_data['code'] == 0
+            self.frame_type = json_data['data']['frameType']
+            log.info('获取服务类型成功')
+        except AssertionError:
+            log.error('获取服务类型失败:{}'.format(json_data))
+            raise AssertionError('返回code不等于0！')
 
-    # 上传服务封面
+    # 上传封面
     def upload_cover(self):
         img = 'cover.png'
         self.ch.set_files(img)
         self.ch.set_url(common.upload_img)
         response = self.ch.post_file()
-        json_data = self.assert_code(response, '上传服务封面')
-        self.cover_path = json_data['url']
+        json_data = response.json()
+        try:
+            assert json_data['code'] == 0
+            self.cover_path = json_data['url']
+            log.info('上传服务封面成功')
+        except AssertionError:
+            log.error('上传服务封面失败:{}'.format(json_data))
+            raise AssertionError('返回code不等于0！')
 
     # 上传服务文档资料
     def upload_doc(self):
@@ -157,9 +183,16 @@ class TestApp:
         self.ch.set_files(file)
         self.ch.set_url(common.upload_file)
         response = self.ch.post_file()
-        json_data = self.assert_code(response, '上传服务文档')
-        self.doc_path = json_data['url']
+        json_data = response.json()
+        try:
+            assert json_data['code'] == 0
+            self.doc_path = json_data['url']
+            log.info('上传服务文档成功')
+        except AssertionError:
+            log.error('上传服务文档失败:{}'.format(json_data))
+            raise AssertionError('返回code不等于0！')
 
+    # 获取默认链码包信息
     def get_default_chain_code(self):
         data = {
             "stringType": self.frame_type,
@@ -169,8 +202,14 @@ class TestApp:
         self.ch.set_data(data)
         self.ch.set_url(common.default_chain_code)
         response = self.ch.post_json()
-        json_data = self.assert_code(response, '获取默认链码包信息')
-        self.default_chain_code_id = json_data['rows'][0]['id']
+        json_data = response.json()
+        try:
+            assert json_data['code'] == 0
+            self.default_chain_code_id = json_data['rows'][0]['id']
+            log.info('获取默认链码包信息成功')
+        except AssertionError:
+            log.error('获取默认链码包信息失败:{}'.format(json_data))
+            raise AssertionError('返回code不等于0！')
 
     # 获取默认链码包方法
     def get_default_chain_code_func(self):
