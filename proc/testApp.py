@@ -14,11 +14,10 @@ class TestApp:
         self.ch = ConfigHttp()
         self.rc = readConfig.ReadConfig()
         token = get_token()
-        headers = {
-            'X-Token': token
-        }
+        headers = {'X-Token': token}
         self.ch.set_headers(headers)
 
+        self.app_name = None
         self.user_id = None
         self.account = None
         self.usable_node = None
@@ -28,7 +27,9 @@ class TestApp:
         self.frame_type = None
         self.cover_path = None
         self.doc_path = None
-        self.default_chain_code_id = None
+        self.default_chain_code_data = None
+        self.default_chain_code_func = None
+        self.new_chain_code_path = None
 
     # 获取用户信息（用户id与账户余额）
     def get_user_info(self):
@@ -62,11 +63,12 @@ class TestApp:
     # 购买服务订单
     def by_app(self):
         ran = random.sample(list(range(len(self.usable_node))), 3)
-        app_name = self.rc.get_http('app_name')
+        self.app_name = self.rc.get_http('app_name')
+
         data = {
             "appType": 1,
             "payType": 1,
-            "appName": app_name,
+            "appName": self.app_name,
             "algorithmType": 2,
             "frameType": "fabric",
             "orgList": [
@@ -117,13 +119,13 @@ class TestApp:
             assert json_data['code'] == 0
 
             # 更新服务名称
-            new_app_name = app_name.split('_')[0] + '_' + str(int(app_name.split('_')[1]) + 1)
+            new_app_name = self.app_name.split('_')[0] + '_' + str(int(self.app_name.split('_')[1]) + 1)
             self.rc.set_http('app_name', new_app_name)
 
             self.order_id = json_data['data']['orderId']
             self.app_info_id = json_data['data']['appInfoId']
             self.pay_price = json_data['data']['payPrice']
-            log.info('购买服务订单生成成功')
+            log.info('购买服务订单生成成功，服务名：{}'.format(self.app_name))
 
         except AssertionError:
             log.error('购买服务订单生成失败:{}'.format(json_data))
@@ -205,7 +207,7 @@ class TestApp:
         json_data = response.json()
         try:
             assert json_data['code'] == 0
-            self.default_chain_code_id = json_data['rows'][0]['id']
+            self.default_chain_code_data = json_data['rows'][0]
             log.info('获取默认链码包信息成功')
         except AssertionError:
             log.error('获取默认链码包信息失败:{}'.format(json_data))
@@ -213,13 +215,145 @@ class TestApp:
 
     # 获取默认链码包方法
     def get_default_chain_code_func(self):
-        data = {"id": self.default_chain_code_id}
+        data = {"id": self.default_chain_code_data['id']}
         self.ch.set_data(data)
         self.ch.set_url(common.default_chain_code_func)
+        response = self.ch.post_json()
+        json_data = response.json()
+        try:
+            assert json_data['code'] == 0
+            self.default_chain_code_func = json_data['rows']
+            log.info('获取默认链码包信息成功')
+        except AssertionError:
+            log.error('获取默认链码包信息失败:{}'.format(json_data))
+            raise AssertionError('返回code不等于0！')
+
+    # 上传新增链码包
+    def upload_new_chain_code(self):
+        file = 'ChainCode.zip'
+        self.ch.set_files(file)
+        self.ch.set_url(common.upload_file)
+        response = self.ch.post_file()
+        json_data = response.json()
+        try:
+            assert json_data['code'] == 0
+            self.new_chain_code_path = json_data['url']
+            log.info('上传新增链码包成功')
+        except AssertionError:
+            log.error('上传新增链码包失败:{}'.format(json_data))
+            raise AssertionError('返回code不等于0！')
+
+    # 上传服务
+    def upload_app(self):
+        # 造方法数据
+        funcs = []
+        for func in self.default_chain_code_func:
+            f = {
+                "id": "",
+                "funcName": func['funcName'],
+                "funcType": str(func['funcType']),
+                "ccName": func['ccName'],
+                "ccMethod": func['ccMethod']
+            }
+
+            funcs.append(f)
+
+        funcs.append({
+            "id": "",
+            "funcName": "新的功能-预置",
+            "funcType": "2",
+            "ccName": self.default_chain_code_func[0]['ccName'],
+            "ccMethod": "new_method1"
+        })
+        funcs.append({
+            "id": "",
+            "funcName": "新的功能-新增",
+            "funcType": "3",
+            "ccName": "新增链码包-Python",
+            "ccMethod": "new_method2"
+        })
+
+        # 造用户数据
+        user1_func = random.sample(funcs, random.randint(1, len(funcs)))
+        s1 = ''
+        for f in user1_func:
+            s1 = s1 + f['funcName'] + ','
+
+        user2_func = random.sample(funcs, random.randint(1, len(funcs)))
+        s2 = ''
+        for f in user2_func:
+            s2 = s2 + f['funcName'] + ','
+
+        data = {
+            "appName": self.app_name,
+            "userId": self.user_id,
+            "appInfoId": self.app_info_id,
+            "vers": "1.1.1",
+            "img": self.cover_path,
+            "introduction": "这是服务的简介-Python",
+            "appDesc": "<p>这是服务的描述-Python</p>",
+            "caType": "1",
+            "docList": [
+                {
+                    "docName": "这是服务的文档资料-Python",
+                    "docType": str(random.randint(1, 3)),
+                    "docPath": self.doc_path,
+                    "id": None
+                }
+            ],
+            "chainCodeList": [
+                {
+                    "ccLanguage": self.default_chain_code_data['ccType'],
+                    "ccName": self.default_chain_code_data['ccName'],
+                    "ccPackageName": self.default_chain_code_data['ccPackageName'],
+                    "ccPath": self.default_chain_code_data['ccPath'],
+                    "ccVerNo": self.default_chain_code_data['ccVersion'],
+                    "initParam": "",
+                    "mainPath": self.default_chain_code_data['mainPath']
+                },
+                {
+                    "ccName": "新增链码包-Python",
+                    "ccVerNo": "1.1.1.1",
+                    "ccLanguage": "1",
+                    "ccPath": self.new_chain_code_path,
+                    "ccPackageName": "ChainCode.zip",
+                    "mainPath": "",
+                    "initParam": "init"
+                }
+            ],
+            "funcList": funcs,
+            "roleList": [
+                {
+                    "roleName": "用户1",
+                    "roleDesc": "这是用户1-Python",
+                    "funcList": user1_func,
+                    "rolePermissionDesc": s1[:-1]
+                },
+                {
+                    "roleName": "用户2",
+                    "roleDesc": "这是用户2-Python",
+                    "funcList": user2_func,
+                    "rolePermissionDesc": s2[:-1]
+                }
+            ],
+            "appServiceType": "1"
+                }
+
+        self.ch.set_data(data)
+        self.ch.set_url(common.upload_app)
+        response = self.ch.post_json()
+        json_data = response.json()
+        try:
+            assert json_data['code'] == 0
+            log.info('上传服务成功')
+        except AssertionError:
+            log.error('上传服务失败:{}'.format(json_data))
+            raise AssertionError('返回code不等于0！')
 
 
 if __name__ == '__main__':
     p = TestApp()
+    p.get_user_info()
     p.get_usable_node()
     p.by_app()
     p.pay_app_order()
@@ -227,3 +361,6 @@ if __name__ == '__main__':
     p.upload_cover()
     p.upload_doc()
     p.get_default_chain_code()
+    p.get_default_chain_code_func()
+    p.upload_new_chain_code()
+    p.upload_app()

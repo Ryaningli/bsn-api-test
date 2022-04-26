@@ -7,6 +7,7 @@ localReadConfig = readConfig.ReadConfig()
 logger = MyLog.get_log()
 log = logger.get_logger()
 
+
 class ConfigHttp:
 
     def __init__(self):
@@ -74,7 +75,8 @@ class ConfigHttp:
         :return:
         """
         try:
-            response = requests.get(self.url, headers=self.headers, params=self.params, data=self.data, timeout=float(timeout))
+            response = requests.get(self.url, headers=self.headers, params=self.params, data=self.data,
+                                    timeout=float(timeout))
             return response
         except requests.exceptions.ReadTimeout:
             log.error('超时！！！')
@@ -86,7 +88,8 @@ class ConfigHttp:
         :return:
         """
         try:
-            response = requests.post(self.url, headers=self.headers, params=self.params, data=self.data, timeout=float(timeout))
+            response = requests.post(self.url, headers=self.headers, params=self.params, data=self.data,
+                                     timeout=float(timeout))
             # response.raise_for_status()
             return response
         except requests.exceptions.ReadTimeout:
@@ -99,7 +102,8 @@ class ConfigHttp:
         :return:
         """
         try:
-            response = requests.post(self.url, headers=self.headers, data=self.data, files=self.files, timeout=float(timeout))
+            response = requests.post(self.url, headers=self.headers, data=self.data, files=self.files,
+                                     timeout=float(timeout))
             return response
         except requests.exceptions.ReadTimeout:
             log.error('超时！！！')
